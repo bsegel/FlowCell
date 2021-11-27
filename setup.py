@@ -4,7 +4,7 @@ with open("README.md", "r") as f:
     long_description = f.read()
 
 setuptools.setup(
-    name="kinetics",
+    name="integratedSys",
     version="1.0",
     author="Becca Segel",
     author_email="becca.segel@pitt.edu",
