@@ -6,37 +6,33 @@ from scipy.optimize import curve_fit
 import functools
 from functools import partial
 import scipy.stats as st
-import random
 
 def read_CV(file, cycle,ref):
     """
     Objective
     ----------
     Read a CV DTA file  and output indicies of cycles, time of each data measurement, Voltage, Current,
-    and number of cycles. 
+    and number of cycles
 
     Parameters
     ----------
     file : :obj:`numpy.ndarray`
         CV file
     cycle : :obj:`numpy.ndarray`
-        desired cycle(s) of data to be extracted. -1 is all, and others are the true cycle value- not one less to account for python indicies
+        desired cycle(s) of data to be extracted
     ref : :obj:`numpy.float64`
         reference electrode voltage
 
     """
-    
-    #changes cycle inputted to reflect python indicies
+    #all voltage data is wrt Ag/AgCl ref electrode
     cycle=cycle-1
-    
-    #open and read CSV file, place items in variable 'row'
     file_as_text = []
     with open(file, newline='') as csvfile:
          spamreader = csv.reader(csvfile, delimiter='\t', quotechar='|')
          for row in spamreader:
             file_as_text.extend([row])
 
-    #find 'CURVE' which is where the CV data starts
+
     header = []
     for row in file_as_text:
         if 'CURVE' not in row[0]:
@@ -44,7 +40,6 @@ def read_CV(file, cycle,ref):
         else:
             break
 
-    #initialize empty arrays and variables
     curve_data_raw = []
     curve_data_IV = []
     indicies = []
@@ -53,7 +48,6 @@ def read_CV(file, cycle,ref):
     I=[]
     numcyc=0
 
-    #build curve data into array 'curve_data'
     for row in file_as_text[len(header)::]: #:: means start:stop:step minus the stop
     #start at line with CURVE and stop whenever we are done
     # string[::2] reads “default start index, default stop index, step size is two—take every second element”.
@@ -72,8 +66,9 @@ def read_CV(file, cycle,ref):
             #    [cycle][row][index]
         numcyc=numcyc
     curve_data = [np.array(data).transpose() for data in curve_data_IV]
+    #print(len(curve_data[0::][0]))
 
-    #split data into the variables we want
+    #want to only look at 220
     if cycle < 0:
         for q in range(len(curve_data[0::])-1):
             indicies.append(curve_data[q][0])
@@ -87,8 +82,8 @@ def read_CV(file, cycle,ref):
         I= curve_data[cycle][3]
 
     return indicies, time, V, I,numcyc
-  
-  def FindSOC(V,I,SRP,T,M):
+
+def FindSOC(V,I,SRP,T,M):
     """
     Objective
     ----------
@@ -108,42 +103,32 @@ def read_CV(file, cycle,ref):
         Total molarity of active material in battery system [M]
 
     """
-    #Find the index range where the absolute value of current is a minimum
-    #I used 1e-9 because it yeilds a very small number of indicies at the given concentrations
+    T=298#K
+    n=1#electron
+    F=96485 #Faraday's constant [coulomb/mol]
+    R=8.314 #J/mol-K
     FRP_range = np.where(np.abs(I)<1e-9) #V is in V, I is in A
-
-    #Find the potential by the mean of voltage values from above indicies
+ 
+    
     FRP=np.mean(V[FRP_range[0]]) #FRP is in V
 
     #use the nernst equation to find the FindSOC
-    z=(FRP-SRP)*(F*n/(R*T)) #unitless
+    z=(-FRP+SRP)*(F*n/(R*T)) #unitless
+    #z=(FRP-SRP)*(F*n/(R*T)) #unitless
     p=np.exp(z) #unitless
     ox=p*M/(1+p) #solve for concentration of oxidized species#M
     SOC= ox*100/M #solve for FindSOC#%
 
     return SOC, FRP, ox
 
-  def convert_images_to_gif(filenames, filename_final, fps=10):
-    """
-    Objective
-    ----------
-    take the png images generated and make it into a gif
-
-    Parameters
-    ----------
-    filenames : :obj:`str`
-        An array of png images 
-    filename_final : :obj:`str`
-        name of final gif
-    fps : :obj:`int`
-        frames per second
-    """
+def convert_images_to_gif(filenames, filename_final, fps=10):
+    #take the png images generated and make it into a gif
     images = []
     for filename in filenames:
         images.append(imageio.imread(filename))
     imageio.mimsave(filename_final, images, fps=fps)
-    
-    def fit_ko(eta,ko,oxidation):
+
+def fit_ko(eta,ko,oxidation):
     """
     Objective
     ----------
@@ -153,11 +138,15 @@ def read_CV(file, cycle,ref):
     ----------
     eta : :obj:`numpy.ndarray`
         An array of overpotential values [V]
-    ko : :obj: to be fitted
-        concentration of oxidized species resulting from CV Data [M]
     oxidation : :obj:`numpy.float64`
         A concentration value of oxidized species [M]
+    Formal : :obj: `numpy.float64`
+        The formal reduction potential from this set of CV data [V]
+    ko : :obj: to be fitted
+        concentration of oxidized species resulting from CV Data [M]
+
     """
+    
     A = 7.85e-7 # area in cm^2 of CF microelectrode
     Tsys = 298 #K
     Rgas = 8.314 #J/mol-K
@@ -166,6 +155,7 @@ def read_CV(file, cycle,ref):
     C0 = oxidation #mol/L concentration of oxidized species
     CR = 1 - C0 #mol/L concentration of reduced species
 
-    return -ko/1000*F*A*(C0*np.exp(-alpha*F/Rgas/Tsys*eta)-CR*np.exp((1-alpha)*F/Rgas/T*eta))
+    return -ko/1000*F*A*(C0*np.exp(-alpha*F/Rgas/Tsys*eta)-CR*np.exp((1-alpha)*F/Rgas/Tsys*eta))
+
   
   
