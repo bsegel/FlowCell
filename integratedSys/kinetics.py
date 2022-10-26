@@ -83,6 +83,52 @@ def read_CV(file, cycle,ref):
 
     return indicies, time, V, I,numcyc
 
+def read_CCD(file):
+    file_as_text = []
+    with open(file, newline='') as csvfile:
+         spamreader = csv.reader(csvfile, delimiter='\t', quotechar='|')
+         for row in spamreader:
+            file_as_text.extend([row])
+    file_as_text.pop(-1)
+    header = []
+    for row in file_as_text:
+        if 'CURVE' not in row[0]:
+            header.extend([row]) #tells us the indices of rows before CURVE
+        else:
+            break
+
+    curve_data_raw = []
+    curve_data_IV = []
+    indicies = []
+    for row in file_as_text[len(header)::]: #:: means start:stop:step minus the stop
+    #start at line with CURVE and stop whenever we are done
+    # string[::2] reads “default start index, default stop index, step size is two—take every second element”.
+        i = -1
+        if 'CURVE' in row[0]:
+            j = 0 #row
+            i+=1 #i=0 for CURVE row, i means column index
+            curve_data_raw.extend([[]]) #make empty arrays
+            curve_data_IV.extend([[]])
+        else:
+            j += 1 #j=1 for headers line
+            curve_data_raw[i].extend([row]) #in each column slot in a row, add index  of stuff in matrix
+            if j > 2:#this is the data
+                #if 'QUANT' in row[j]:
+                    #break
+                curve_data_IV[i].extend([[float(val) for val in row[1:5]]])
+            #    [cycle][row][index]
+
+
+    curve_data = [np.array(data).transpose() for data in curve_data_IV]
+    #for row in curve_data_IV:
+        #indicies= curve_data_IV[cycle][row][0]
+
+    indicies= curve_data[cycle][0]
+    time= curve_data[cycle][1]
+    V= curve_data[cycle][2]
+    I= curve_data[cycle][3]
+    return indicies, time, V, I
+
 def FindSOC(V,I,SRP,T,M):
     """
     Objective
